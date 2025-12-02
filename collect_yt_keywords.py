@@ -11,6 +11,7 @@ missing the script will exit with a non-zero status and print a helpful message.
 This script uses only the Python standard library so it can run on plain
 GitHub Actions python runners without extra dependencies.
 """
+import csv
 import json
 import os
 import sys
@@ -68,6 +69,51 @@ def save_output(all_results):
     print(f"Saved results to: {out_path}")
 
 
+def save_csv(all_results):
+    # write a CSV summarizing id, title, channel, viewCount for each video
+    os.makedirs("outputs", exist_ok=True)
+    now = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    csv_path = os.path.join("outputs", f"yt_trending_{now}.csv")
+
+    items = all_results.get("items")
+    if not items or not isinstance(items, dict) or "items" not in items:
+        # nothing to write
+        print("No items present to write CSV output; skipping CSV.")
+        return None
+
+    rows = []
+    for item in items.get("items", []):
+        # video id may be a dict (search results) or a string (videos API)
+        vid = item.get("id")
+        if isinstance(vid, dict):
+            video_id = vid.get("videoId") or vid.get("kind")
+        else:
+            video_id = vid
+
+        snippet = item.get("snippet", {})
+        stats = item.get("statistics", {})
+
+        rows.append({
+            "videoId": video_id or "",
+            "title": snippet.get("title", "")[:500],
+            "channelTitle": snippet.get("channelTitle", "")[:200],
+            "viewCount": stats.get("viewCount", ""),
+        })
+
+    if not rows:
+        print("No parsed rows for CSV; skipping CSV.")
+        return None
+
+    with open(csv_path, "w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=["videoId", "title", "channelTitle", "viewCount"])
+        writer.writeheader()
+        for r in rows:
+            writer.writerow(r)
+
+    print(f"Saved CSV summary to: {csv_path}")
+    return csv_path
+
+
 def main():
 
     # Now behave as a trending collector.
@@ -88,6 +134,9 @@ def main():
         data = {"error": str(exc)}
 
     all_results["items"] = data
+
+    # write a CSV summary if available
+    save_csv(all_results)
 
     save_output(all_results)
 
