@@ -1,0 +1,21 @@
+name: Daily YouTube Keyword Collector
+
+on:
+  schedule:
+    # 毎日 UTC 0:00（日本時間 朝9時ごろ）
+    - cron: "0 0 * * *"
+  workflow_dispatch:  # 手動実行ボタンも付けておく
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Python をセットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: スクリプト実行
+        run: python collect_yt_keywords.py
