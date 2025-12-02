@@ -18,13 +18,15 @@ import urllib.parse
 import urllib.request
 from datetime import datetime
 
+
 DEFAULT_KEYWORDS = [
     "python tutorial",
     "how to code",
     "youtube api",
 ]
 
-API_URL = "https://www.googleapis.com/youtube/v3/search"
+# We'll use the videos API to fetch the current mostPopular (trending) videos.
+API_URL = "https://www.googleapis.com/youtube/v3/videos"
 
 
 def get_api_key():
@@ -36,12 +38,19 @@ def get_api_key():
     return key
 
 
-def query_youtube(api_key: str, q: str, max_results: int = 5):
+def query_trending(api_key: str, region: str = "JP", max_results: int = 10):
+    """Query the videos API for the mostPopular chart (trending videos).
+
+    - region: 2-letter regionCode (ISO 3166-1 alpha-2), default JP
+    - max_results: number of results to fetch (max 50 according to API)
+    """
+    if max_results > 50:
+        max_results = 50
     params = {
-        "part": "snippet",
-        "q": q,
+        "part": "snippet,statistics,contentDetails",
+        "chart": "mostPopular",
+        "regionCode": region,
         "maxResults": str(max_results),
-        "type": "video",
         "key": api_key,
     }
     url = API_URL + "?" + urllib.parse.urlencode(params)
@@ -60,22 +69,25 @@ def save_output(all_results):
 
 
 def main():
-    # Accept keywords from CLI args, otherwise use defaults
-    keywords = sys.argv[1:] if len(sys.argv) > 1 else DEFAULT_KEYWORDS
+
+    # Now behave as a trending collector.
+    # Region code can be passed as a single CLI arg or via env YOUTUBE_REGION.
+    cli_region = sys.argv[1] if len(sys.argv) > 1 else None
+    region = cli_region or os.environ.get("YOUTUBE_REGION") or "JP"
 
     # If YOUTUBE_API_KEY is not present, the script will exit with code 1
     api_key = get_api_key()
 
-    all_results = {"fetched_at": datetime.utcnow().isoformat() + "Z", "queries": []}
+    all_results = {"fetched_at": datetime.utcnow().isoformat() + "Z", "region": region, "items": []}
 
-    for q in keywords:
-        print(f"Querying: {q}")
-        try:
-            data = query_youtube(api_key, q)
-        except Exception as exc:
-            print(f"Failed to query YouTube for '{q}': {exc}")
-            data = {"error": str(exc)}
-        all_results["queries"].append({"q": q, "result": data})
+    print(f"Fetching trending videos for region: {region}")
+    try:
+        data = query_trending(api_key, region=region)
+    except Exception as exc:
+        print(f"Failed to query trending videos: {exc}")
+        data = {"error": str(exc)}
+
+    all_results["items"] = data
 
     save_output(all_results)
 
