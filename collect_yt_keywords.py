@@ -39,7 +39,7 @@ def get_api_key():
     return key
 
 
-def query_trending(api_key: str, region: str = "JP", max_results: int = 10):
+def query_trending(api_key: str, region: str = "JP", max_results: int = 50):
     """Query the videos API for the mostPopular chart (trending videos).
 
     - region: 2-letter regionCode (ISO 3166-1 alpha-2), default JP
